@@ -1,0 +1,51 @@
+# Ambiente completo: Oracle XE + WildFly 13 (Java 8).
+# Use pelo Makefile (make up, make down, make logs...) ou:
+#   docker compose -f infra/docker-compose.yml --env-file infra/.env up -d
+services:
+  oracle:
+    image: ${ORACLE_IMAGE}
+    container_name: orcamento-familiar-oracle
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+      APP_USER: ${DB_USER}
+      APP_USER_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:1521"
+    volumes:
+      - oracle-dados:/opt/oracle/oradata
+      # Scripts .sql rodam em ordem alfabética só no primeiro start (volume vazio).
+      - ./db/scripts:/container-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  app:
+    build:
+      context: ./app
+      args:
+        WILDFLY_ADMIN_USER: ${WILDFLY_ADMIN_USER}
+        WILDFLY_ADMIN_PASSWORD: ${WILDFLY_ADMIN_PASSWORD}
+        OJDBC_VERSION: ${OJDBC_VERSION}
+    image: orcamento-familiar-wildfly:13
+    container_name: orcamento-familiar-app
+    environment:
+      DB_URL: ${DB_URL}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      TZ: America/Sao_Paulo
+    ports:
+      - "${APP_PORT}:8080"
+      - "${ADMIN_PORT}:9990"
+      - "${DEBUG_PORT}:8787"
+    volumes:
+      # O .war copiado para infra/app/deployments (make deploy) é publicado sem reiniciar.
+      - ./app/deployments:/opt/jboss/wildfly/standalone/deployments
+    depends_on:
+      oracle:
+        condition: service_healthy
+
+volumes:
+  oracle-dados:

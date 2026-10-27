@@ -1,0 +1,11 @@
+# Executado no build da imagem (servidor embutido, sem precisar subir o WildFly).
+embed-server --std-out=echo --server-config=standalone.xml
+
+module add --name=com.oracle.ojdbc8 --resources=/tmp/ojdbc8.jar --dependencies=javax.api,javax.transaction.api
+
+/subsystem=datasources/jdbc-driver=oracle:add(driver-name=oracle, driver-module-name=com.oracle.ojdbc8, driver-xa-datasource-class-name=oracle.jdbc.xa.client.OracleXADataSource)
+
+# As expressões ${env.*} são resolvidas pelo WildFly quando ele sobe, não agora.
+data-source add --name=OrcamentoFamiliarDS --jndi-name=java:jboss/datasources/OrcamentoFamiliarDS --driver-name=oracle --connection-url=${env.DB_URL} --user-name=${env.DB_USER} --password=${env.DB_PASSWORD} --min-pool-size=2 --max-pool-size=20 --check-valid-connection-sql="SELECT 1 FROM DUAL" --enabled=true
+
+stop-embedded-server

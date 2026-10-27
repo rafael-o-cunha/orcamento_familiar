@@ -1,0 +1,23 @@
+[
+  { "name": "desenvolvimento", "color": "1F6FEB", "description": "Código de funcionalidade" },
+  { "name": "atividade", "color": "7B83EB", "description": "Tarefa sem código de produto (setup, estudo, execução)" },
+  { "name": "teste", "color": "C5CAE0", "description": "Escrita/execução de testes, validação manual documentada" },
+  { "name": "documentação", "color": "C5CAE0", "description": "README, docs/ e notas" },
+  { "name": "melhoria", "color": "6E40C9", "description": "Evolução de algo já entregue" },
+  { "name": "defeito interno", "color": "F47067", "description": "Defeito achado pelo orientador antes da homologação" },
+  { "name": "defeito externo", "color": "E5534B", "description": "Defeito achado na homologação ou no uso" },
+  { "name": "front", "color": "C5CAE0", "description": "XHTML, PrimeFaces, AJAX, validação client-side" },
+  { "name": "back", "color": "C5CAE0", "description": "View, Controller, Business, DAO, regra de negócio" },
+  { "name": "banco", "color": "C5CAE0", "description": "Schema SQL, seed, queries" },
+  { "name": "config", "color": "C5CAE0", "description": "Maven, .env, variáveis de ambiente, setup de projeto" },
+  { "name": "infra", "color": "C5CAE0", "description": "Docker, docker-compose, WildFly, deploy" },
+  { "name": "seguranca", "color": "C5CAE0", "description": "CSRF, XSS, SQL Injection, hash de senha, upload seguro" },
+  { "name": "to do", "color": "2EA043", "description": "Ainda não iniciada" },
+  { "name": "doing", "color": "A2D729", "description": "Em desenvolvimento" },
+  { "name": "pronto pra teste", "color": "54AEFF", "description": "Estagiário concluiu; aguardando revisão" },
+  { "name": "homologar", "color": "388BFD", "description": "Revisada; aguardando homologação" },
+  { "name": "done", "color": "0969DA", "description": "Concluída" },
+  { "name": "impedimento", "color": "F0883E", "description": "Travada por dependência externa (ex: aguardando definir schema de outra issue)" },
+  { "name": "pausada", "color": "D4A72C", "description": "Issue começou mas foi interrompida por decisão própria (prioridade mudou)" },
+  { "name": "cancelada", "color": "D73A4A", "description": "Não será mais feita (ex: bônus descartado por falta de tempo)" }
+]

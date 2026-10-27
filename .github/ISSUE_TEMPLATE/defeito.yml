@@ -1,0 +1,31 @@
+name: Defeito
+description: Algo entregue não funciona como o documento descreve
+title: "[Defeito] "
+labels: ["defeito interno", "to do"]
+body:
+  - type: input
+    id: tarefa
+    attributes:
+      label: Tarefa de origem
+      placeholder: "#15 (T3.2)"
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir
+      value: "1. \n2. \n3. "
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Resultado esperado
+      description: Cite a regra (RNxx), o cenário (CAxx) ou a chave de mensagem (msg_...).
+    validations:
+      required: true
+  - type: textarea
+    id: obtido
+    attributes:
+      label: Resultado obtido
+      description: Inclua print ou trecho de log, se houver.
+    validations:
+      required: true

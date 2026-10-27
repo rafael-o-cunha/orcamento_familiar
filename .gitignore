@@ -1,0 +1,31 @@
+# Ambiente (senhas locais)
+infra/.env
+
+# Build e deploy
+app/target/
+infra/app/deployments/*
+!infra/app/deployments/.gitkeep
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+nbproject/
+nbactions.xml
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Logs e temporários
+*.log
+*.tmp
+*.swp
+
+# Python
+__pycache__/
+*.pyc

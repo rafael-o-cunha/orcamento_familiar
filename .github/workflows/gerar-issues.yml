@@ -1,0 +1,33 @@
+name: Gerar labels e issues
+
+# Roda manualmente: aba Actions > "Gerar labels e issues" > Run workflow.
+# Lê docs/04-tarefas.md e .github/labels.json. Pode rodar de novo sem duplicar nada.
+on:
+  workflow_dispatch:
+    inputs:
+      simulacao:
+        description: "Só mostrar o que seria criado (não cria nada)"
+        type: boolean
+        default: true
+      somente_labels:
+        description: "Sincronizar só as labels"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Criar labels, milestones e issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ARGS="--repo ${{ github.repository }}"
+          if [ "${{ inputs.simulacao }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.somente_labels }}" = "true" ]; then ARGS="$ARGS --somente-labels"; fi
+          python3 .github/scripts/gerar_issues.py $ARGS

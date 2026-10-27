@@ -1,0 +1,42 @@
+name: Tarefa
+description: Nova tarefa do projeto (mesmo formato das tarefas em docs/04-tarefas.md)
+title: "[P?] T?.? "
+labels: ["to do"]
+body:
+  - type: input
+    id: pacote
+    attributes:
+      label: Pacote
+      placeholder: "P3 — Dialog de lançamento"
+  - type: dropdown
+    id: apf
+    attributes:
+      label: APF
+      options: ["—", "EE — entrada externa", "CE — consulta externa", "SE — saída externa", "ALI — arquivo lógico interno"]
+  - type: textarea
+    id: descricao
+    attributes:
+      label: Descrição
+      description: O que fazer, em poucas linhas.
+    validations:
+      required: true
+  - type: textarea
+    id: entregavel
+    attributes:
+      label: Entregável
+      description: O que deve existir ao final (classes, tela, script).
+    validations:
+      required: true
+  - type: textarea
+    id: aceite
+    attributes:
+      label: Aceite
+      description: Como o orientador confere que está pronto.
+      value: "- [ ] "
+    validations:
+      required: true
+  - type: input
+    id: depende
+    attributes:
+      label: Depende de
+      placeholder: "#12, #13"
