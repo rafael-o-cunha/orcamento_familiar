@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:h="http://xmlns.jcp.org/jsf/html"
+	xmlns:f="http://xmlns.jcp.org/jsf/core"
+	xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+	<title>Movimentações</title>
+</h:head>
+
+<h:body>
+	<h:form id="formMovimentacoes" style="width:90%;">
+		<p:growl id="mensagens" showSummary="true" showDetail="true" life="5000" />
+
+		<p:panel id="painelFiltro" header="Filtro de busca" toggleable="true" collapsed="false" style="margin-bottom:15px">
+
+			<p:panelGrid style="width:100%">
+
+				<p:row>
+					<p:column style="width:20%; text-align:right; padding:6px; vertical-align:middle; font-weight:bold">
+						<p:outputLabel for="descricao" value="Descrição:" />
+					</p:column>
+					<p:column style="padding:6px">
+						<p:inputText id="descricao"
+							value="#{movimentacaoController.filtro.descricao}" size="40" />
+						<p:watermark for="descricao" value="Ex.: compra" />
+					</p:column>
+				</p:row>
+
+				<p:row>
+					<p:column style="width:20%; text-align:right; padding:6px; vertical-align:middle; font-weight:bold">
+						<p:outputLabel for="dataInicio" value="Data início:" />
+					</p:column>
+					<p:column style="padding:6px">
+						<p:calendar id="dataInicio"
+							value="#{movimentacaoController.filtro.dataInicio}"
+							pattern="dd/MM/yyyy" showOn="button" />
+					</p:column>
+
+					<p:column style="width:20%; text-align:right; padding:6px; vertical-align:middle; font-weight:bold">
+						<p:outputLabel for="dataFim" value="Data fim:" />
+					</p:column>
+					<p:column style="padding:6px">
+						<p:calendar id="dataFim"
+							value="#{movimentacaoController.filtro.dataFim}"
+							pattern="dd/MM/yyyy" showOn="button" />
+					</p:column>
+				</p:row>
+
+				<p:row>
+					<p:column style="width:20%; text-align:right; padding:6px; vertical-align:middle; font-weight:bold">
+						<p:outputLabel for="tipos" value="Tipos:" />
+					</p:column>
+					<p:column style="padding:6px">
+						<p:selectCheckboxMenu id="tipos"
+											  value="#{movimentacaoController.filtro.tipos}"
+											  converter="tipoMovimentacaoConverter" label="Selecione...">
+							<f:selectItems value="#{movimentacaoController.tiposDisponiveis}" var="t" itemValue="#{t}" itemLabel="#{t.label}" />
+						</p:selectCheckboxMenu>
+					</p:column>
+				</p:row>
+
+				<p:row>
+					<p:column colspan="2" style="padding:6px">
+						<p:commandButton value="Filtrar"
+										 action="#{movimentacaoController.filtrar}" update="@form"
+										 icon="ui-icon-search" />
+
+						<p:commandButton value="Limpar filtro"
+										 action="#{movimentacaoController.limparFiltro}" process="@this"
+										 update="@form" style="margin-left:10px">
+							<p:resetInput target="@form" />
+						</p:commandButton>
+					</p:column>
+				</p:row>
+
+			</p:panelGrid>
+
+		</p:panel>
+
+		<p:dataTable id="tabela" var="mov"
+					 value="#{movimentacaoController.movimentacoes}" rowKey="#{mov.id}"
+				 	 emptyMessage="Nenhuma movimentação encontrada" paginator="true"
+					 paginatorPosition="bottom" rows="20" rowsPerPageTemplate="20,50,100"
+					 selection="#{movimentacaoController.movSelecionado}"
+					 selectionMode="single"
+					 paginatorTemplate="{FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink}">
+			
+			<f:facet name="header">
+				<h:outputText value="Movimentações Financeiras" />
+			</f:facet>
+
+			<p:ajax event="rowSelect" process="@this"
+					update="formMovimentacoes:mensagens"
+					listener="#{movimentacaoController.onRowSelect}" />
+
+			<p:ajax event="rowUnselect" process="@this"
+					update="formMovimentacoes:mensagens"
+					listener="#{movimentacaoController.onRowUnselect}" />
+
+
+			<p:column headerText="Descrição">
+				<h:outputText value="#{mov.descricao}" />
+			</p:column>
+
+			<p:column headerText="Tipo">
+				<h:outputText value="#{mov.tipo.label}" />
+			</p:column>
+
+			<p:column headerText="Data">
+				<h:outputText value="#{mov.data}">
+					<f:convertDateTime type="date" pattern="dd/MM/yyyy" />
+				</h:outputText>
+			</p:column>
+
+			<p:column headerText="Valor">
+				<h:outputText value="#{mov.valor}">
+					<f:convertNumber type="currency" locale="pt_BR" />
+				</h:outputText>
+			</p:column>
+
+		</p:dataTable>
+
+	</h:form>
+</h:body>
+</html>
