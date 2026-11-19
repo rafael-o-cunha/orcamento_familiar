@@ -18,17 +18,15 @@ A dialog é aberta pelos botões abaixo da grid; Saldos e Parametrização são 
 
 Valores ilustrativos; o clipe na última coluna indica lançamento com anexo.
 
-### Dialog de lançamento
+### Dialog de lançamento (uma só dialog: consulta, inclusão e edição)
 
 ![wireframe · dialog de lançamento em modo edição](img/dialog-edicao.svg)
 
-Os limites de upload exibidos (tipos, tamanho, quantidade) vêm da parametrização, não ficam fixos no XHTML.
+Consulta, inclusão e edição são a mesma `p:dialog`, com o mesmo layout: campos em cima e anexos em duas colunas (lista à esquerda, preview à direita). Só muda o modo: em edição/inclusão os campos e o upload ficam habilitados e aparecem Salvar e Cancelar; em consulta os campos ficam desabilitados e só aparece Fechar. Os limites de upload exibidos vêm da parametrização.
 
-### Dialog em consulta com anexos
+![wireframe · a mesma dialog em modo consulta](img/dialog-consulta-anexos.svg)
 
-![wireframe · dialog em consulta com anexos e preview](img/dialog-consulta-anexos.svg)
-
-A linha selecionada na lista define o preview; PDF abre no `p:media` e tipos sem preview mostram `msg_001_019_avs`.
+A mesma dialog em modo consulta. A linha selecionada na lista define o preview: imagem via `p:graphicImage`, PDF via `p:media`; tipos sem preview mostram `msg_001_019_avs`.
 
 ### Tela de saldos
 
@@ -79,7 +77,7 @@ Mensagens: `msg_001_005_avs` (pesquisa sem resultado), `msg_001_004_avs` (confir
 
 - Uma única `p:dialog` com um enum de modo na View (`CONSULTA`, `INCLUSAO`, `EDICAO`). Em consulta, todos os campos ficam `disabled` e só o botão Fechar aparece; em inclusão/edição aparecem Salvar e Cancelar.
 - Campos: Natureza (Receita/Despesa), Forma (Débito/Crédito), Escopo (Comum/Pessoal), Usuário (preenchido com o logado, somente leitura), Título, Valor, Data, Data de vencimento da fatura (só aparece quando Forma = Crédito, via AJAX) e Descrição.
-- **Anexos**: em consulta, a área fica em **duas colunas**: à esquerda a lista dos arquivos, à direita o preview do anexo selecionado na lista (imagem via `p:graphicImage` + `StreamedContent`; PDF via `p:media`; outros tipos mostram `msg_001_019_avs`). Botão de download (`p:fileDownload`) em todos os modos; em inclusão/edição, `p:fileUpload` (modo avançado) com `sizeLimit`, `fileLimit` e `allowTypes` vindos da parametrização, e botão de remover anexo.
+- **Anexos**: em todos os modos a área fica em **duas colunas**: à esquerda a lista dos arquivos, à direita o preview do anexo selecionado (imagem via `p:graphicImage` + `StreamedContent`; PDF via `p:media`; tipos com TP_PREVIEW = N mostram `msg_001_019_avs`). Download (`p:fileDownload`) em todos os modos. Em inclusão/edição, abaixo da lista, `p:fileUpload` (modo avançado) com `sizeLimit`, `fileLimit` e `allowTypes` vindos da parametrização, e Remover em cada linha; arquivos novos ficam pendentes e as remoções só valem ao Salvar.
 - Erros de validação e de negócio (`BusinessException`) aparecem em `p:messages` dentro da dialog, e a dialog só fecha em caso de sucesso (`args.validationFailed` / callback param).
 
 Mensagens: `msg_001_001_suc` (incluído), `msg_001_002_suc` (editado), `msg_000_003_err` (campo obrigatório), as das regras RN02, RN05, RN06, RN08, RN11, RN14, RN16, RN19, RN20 e RN21 (coluna Mensagem da seção 3), `msg_001_018_suc` (arquivo anexado), `msg_001_014_err` a `msg_001_016_err` (upload recusado), `msg_001_019_avs` (preview indisponível), `msg_001_021_err` (lançamento excluído por outro usuário), `msg_001_022_err` (anexo removido), `msg_001_023_err` (limites alterados durante a gravação). Salvar e anexar ficam desabilitados durante a requisição (RN22).
@@ -96,7 +94,7 @@ Mensagens: `msg_002_001_avs` (nenhum lançamento no mês selecionado).
 ### 2.5 Parametrização
 
 - Abre em modo consulta; o botão Editar habilita os campos; Salvar e Cancelar encerram a edição.
-- Campos: limite de crédito pessoal de cada usuário (**padrão** R$ 1.000,00; a alteração vale do mês corrente em diante), limite mínimo do saldo comum, limite mínimo do saldo pessoal, quantidade máxima de anexos por lançamento, tamanho máximo por arquivo (KB), tipos permitidos (JPG, PNG, PDF) e se o anexo é obrigatório em despesas.
+- Campos: limite de crédito pessoal de cada usuário (**padrão** R$ 1.000,00; a alteração vale do mês corrente em diante), limite mínimo do saldo comum, limite mínimo do saldo pessoal, quantidade máxima de anexos por lançamento, tamanho máximo por arquivo (KB), tipos permitidos (lista de TB_TIPO_ARQUIVO, marcando ou desmarcando cada tipo) e se o anexo é obrigatório em despesas.
 - Gravação protegida com `@Version` (bloqueio otimista): se o outro usuário salvou antes, exibe mensagem pedindo para recarregar.
 
 Mensagens: `msg_003_001_suc` (salvo), `msg_003_002_err` (alterado por outro usuário), `msg_003_003_err` a `msg_003_006_err` (validações dos campos).
@@ -124,9 +122,9 @@ Todas as regras abaixo são validadas no Business (camada servidor), mesmo que a
 | RN15 | Anexos: tipos, tamanho máximo por arquivo e quantidade máxima por lançamento seguem a parametrização; validados no `p:fileUpload` **e** no `AnexoBusiness`. | `msg_001_014_err`, `msg_001_015_err`, `msg_001_016_err` |
 | RN16 | Se a parametrização marcar "anexo obrigatório em despesa", uma despesa sem anexo não é salva. | `msg_001_017_err` |
 | RN17 | Qualquer usuário pode baixar anexos de qualquer lançamento que consegue consultar. | — |
-| RN18 | Excluir um lançamento exclui seus anexos na mesma transação. | — |
-| RN19 | Dois usuários lançando despesas ao mesmo tempo nunca podem, juntos, deixar o saldo comum abaixo do limite mínimo; o conflito é detectado por bloqueio otimista; a operação é recusada e a tela é atualizada ([Especificação técnica](03-especificacao-tecnica.md#2-concorrência), Concorrência). | `msg_001_013_err` (conflito de versão no saldo) |
-| RN20 | Se o registro foi alterado ou excluído por outro usuário depois de aberto na dialog, a gravação é recusada com mensagem para recarregar (bloqueio otimista; [Especificação técnica](03-especificacao-tecnica.md#2-concorrência)). | `msg_001_012_err` (lançamento), `msg_003_002_err` (parâmetros), `msg_001_021_err` (excluído), `msg_001_022_err` (anexo removido) |
+| RN18 | Excluir um lançamento: o Business exclui primeiro os anexos (TB_ANEXO) e depois o lançamento, na mesma transação, sem cascade no banco ou no JPA. Os arquivos são apagados do disco depois do commit. | — |
+| RN19 | Dois usuários lançando despesas ao mesmo tempo nunca podem, juntos, deixar o saldo comum abaixo do limite mínimo; o conflito é detectado por bloqueio otimista; a operação é recusada e a tela é atualizada (Especificação técnica, Concorrência). | `msg_001_013_err` (conflito de versão no saldo) |
+| RN20 | Se o registro foi alterado ou excluído por outro usuário depois de aberto na dialog, a gravação é recusada com mensagem para recarregar (bloqueio otimista; Especificação técnica, Concorrência). | `msg_001_012_err` (lançamento), `msg_003_002_err` (parâmetros), `msg_001_021_err` (excluído), `msg_001_022_err` (anexo removido) |
 | RN21 | Despesas são validadas com o limite pessoal e o limite mínimo vigentes no momento da gravação; se outro usuário os alterar durante a operação, ela é recusada e a tela é atualizada. | `msg_001_023_err` |
 | RN22 | Salvar, Excluir e anexar ficam desabilitados enquanto a requisição está em andamento, para que um duplo clique não grave duas vezes. | — |
 

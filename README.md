@@ -10,8 +10,9 @@ Sistema web de orçamento familiar para dois usuários (ex.: um casal): cada um 
 | ----------------------------------------------------------- | ---------------------------------------------------------------- |
 | [Descrição](docs/01-descricao.md)                          | Objetivo, o que será praticado, tecnologias e escopo            |
 | [Telas e regras de negócio](docs/02-telas-e-regras.md)      | Wireframes, funcionalidades, regras RN01–RN22 e mensagens       |
-| [Especificação técnica](docs/03-especificacao-tecnica.md) | Arquitetura, concorrência, modelo de dados e dicionário Oracle |
+| [Especificação técnica](docs/03-especificacao-tecnica.md) | Arquitetura, concorrência, modelo de dados, dicionário Oracle 19c e armazenamento dos anexos |
 | [Tarefas](docs/04-tarefas.md)                                | Pacotes de tarefas (viram issues), labels e homologação        |
+| [Protótipos de tela](docs/05-prototipos.md) | Só os prints das telas e da dialog (também em `docs/prototipos-de-tela.pdf`) |
 
 ## Estrutura
 
@@ -23,7 +24,7 @@ Sistema web de orçamento familiar para dois usuários (ex.: um casal): cada um 
 │   ├── .env.example     Variáveis do ambiente (copiado para .env)
 │   ├── docker-compose.yml
 │   ├── app/             Dockerfile do WildFly 13 + datasource Oracle
-│   └── db/scripts/      Scripts SQL rodados no primeiro start do Oracle
+│   └── db/scripts/      Scripts SQL rodados no primeiro start do Oracle (01_ddl.sql pronto)
 ├── notas/               Anotações do desenvolvedor
 ├── .github/             Labels, geração de issues, modelos de issue e PR
 ├── Makefile             Comandos (Linux/macOS)
@@ -50,7 +51,8 @@ Aplicação em `http://localhost:8080/orcamento-familiar`, console do WildFly em
 
 1. `make db-up` para subir só o Oracle (ou use um Oracle seu).
 2. No WildFly 13 local, crie o datasource `java:jboss/datasources/OrcamentoFamiliarDS` apontando para `jdbc:oracle:thin:@localhost:1521/XEPDB1` (os comandos estão em `infra/app/configurar-datasource.cli`).
-3. Preencha `WILDFLY_HOME` no `infra/.env`, rode `make build` e `make deploy-local`.
+3. Defina a variável de ambiente `ANEXOS_DIR` (pasta onde os anexos serão gravados) antes de subir o WildFly local.
+4. Preencha `WILDFLY_HOME` no `infra/.env`, rode `make build` e `make deploy-local`.
 
 No Windows, troque `make` por `make.bat` (ex.: `make.bat up`).
 

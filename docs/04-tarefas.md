@@ -36,7 +36,7 @@ O estagiário move a issue até `pronto pra teste`; daí em diante quem move é 
 
 | Pacote | Tela | Tarefas | Funções APF |
 | --- | --- | --- | --- |
-| P0 — Fundação | — | T0.1 a T0.4 | ALI: Usuário, Lançamento/Anexo, Parâmetro/Limite, Saldo de controle |
+| P0 — Fundação | — | T0.1 a T0.4 | ALI: Usuário, Lançamento/Anexo/Tipo de arquivo, Parâmetro/Limite, Saldo de controle |
 | P1 — Login e logout | Login | T1.1 a T1.3 | EE: entrar, sair |
 | P2 — Lançamentos | Grid de lançamentos | T2.1 a T2.4 | CE: pesquisar |
 | P3 — Dialog de lançamento | Dialog | T3.1 a T3.7 | CE: consultar, baixar anexo · EE: incluir, alterar, excluir, anexar, remover anexo |
@@ -66,9 +66,9 @@ Entrega: projeto rodando no WildFly, banco criado e entidades mapeadas, com uma 
 | Campo | Conteúdo |
 | --- | --- |
 | Labels | `desenvolvimento` `banco` `to do` |
-| APF | ALI (as 6 tabelas do dicionário de dados) |
-| Descrição | Script DDL com tabelas, sequences, PK, FK, UK, CHECK e índices conforme o dicionário. Script de carga com 2 usuários (senha em hash), 2 limites de R$ 1.000,00 com vigência a partir de 202601, parâmetro ID 1 e linha de controle do saldo comum. |
-| Entregável | `01_ddl.sql` e `02_carga.sql` em `src/main/resources/db` |
+| APF | ALI (as 7 tabelas do dicionário de dados) |
+| Descrição | Estudar e rodar o script DDL de referência (infra/db/scripts/01_ddl.sql, Oracle 19c: sequences, PK, FK sem cascade, UK, CHECK e índices) e conferir com o dicionário. Script de carga com 2 usuários (senha em hash), 2 limites de R$ 1.000,00 com vigência a partir de 202601, parâmetro ID 1, tipos de arquivo (jpg, jpeg, png, pdf) e linha de controle do saldo comum. |
+| Entregável | `01_ddl.sql` e `02_carga.sql` em `infra/db/scripts` |
 | Aceite | Scripts rodam do zero sem erro; CHECK rejeita valor ≤ 0 e natureza inválida |
 | Depende de | — |
 
@@ -78,7 +78,7 @@ Entrega: projeto rodando no WildFly, banco criado e entidades mapeadas, com uma 
 | --- | --- |
 | Labels | `desenvolvimento` `back` `banco` `to do` |
 | APF | ALI |
-| Descrição | Entidades `Usuario`, `Lancamento`, `Anexo`, `Parametro`, `LimiteUsuario`, `SaldoControle` com `@SequenceGenerator`, `@Version`, `@Lob` lazy e enums com `AttributeConverter`. |
+| Descrição | Entidades `Usuario`, `Lancamento`, `Anexo`, `TipoArquivo`, `Parametro`, `LimiteUsuario`, `SaldoControle` com `@SequenceGenerator(allocationSize = 1)`, `@Version`, `@ManyToOne(fetch = LAZY)` só no lado dono, sem `cascade`, sem `@OneToMany` e sem `orphanRemoval`, e enums com `AttributeConverter`. |
 | Entregável | Pacotes `entity` e `enums` |
 | Aceite | Deploy sem erro de mapeamento; um teste simples faz `find` de cada entidade da carga |
 | Depende de | T0.1, T0.2 |
@@ -201,7 +201,7 @@ Entrega: CRUD completo de receitas e despesas com anexos, numa única dialog com
 | Labels | `desenvolvimento` `front` `back` `banco` `to do` |
 | APF | EE — incluir lançamento |
 | Descrição | Botão Novo abre a dialog em modo `INCLUSAO`. Validar obrigatórios na tela (`required`) e RN01 a RN03 no Business; valor com `BigDecimal` e 2 casas. O campo Data de vencimento da fatura aparece só quando Forma = Crédito (`p:ajax` no change) e preenche `DT_EFETIVACAO`; no débito, `DT_EFETIVACAO` = Data. Salvar fecha a dialog e atualiza a grid via AJAX; erro mantém a dialog aberta com mensagem. |
-| Entregável | `LancamentoBusiness.incluir()`, `LancamentoDAO.inserir()`, `NegocioException` |
+| Entregável | `LancamentoBusiness.incluir()`, `LancamentoDAO.inserir()`, `BusinessException` |
 | Aceite | Inclusão aparece na grid; valor 0 ou negativo é recusado; usuário gravado é sempre o logado; crédito sem data de fatura é recusado |
 | Depende de | T3.1 |
 
@@ -222,9 +222,9 @@ Entrega: CRUD completo de receitas e despesas com anexos, numa única dialog com
 | --- | --- |
 | Labels | `desenvolvimento` `front` `back` `to do` |
 | APF | EE — excluir lançamento |
-| Descrição | Botão Excluir abre `p:confirmDialog`. Mesmas regras do editar (RN05, RN06); anexos excluídos na mesma transação (RN18). |
+| Descrição | Botão Excluir abre `p:confirmDialog`. Mesmas regras do editar (RN05, RN06); anexos excluídos pelo Business antes do lançamento, na mesma transação e sem cascade; arquivos apagados do disco após o commit (RN18). |
 | Entregável | `LancamentoBusiness.excluir()` |
-| Aceite | Após confirmar, some da grid e os anexos somem do banco; cancelar não altera nada |
+| Aceite | Após confirmar, some da grid e os anexos somem do banco e da pasta de anexos; cancelar não altera nada |
 | Depende de | T3.3 |
 
 ### [P3] T3.5 Anexar arquivo
@@ -233,8 +233,8 @@ Entrega: CRUD completo de receitas e despesas com anexos, numa única dialog com
 | --- | --- |
 | Labels | `desenvolvimento` `front` `back` `banco` `seguranca` `to do` |
 | APF | EE — anexar arquivo |
-| Descrição | `p:fileUpload` (modo avançado) na inclusão/edição, com `sizeLimit`, `fileLimit` e `allowTypes` lidos de `TB_PARAMETRO`. Revalidar no `AnexoBusiness` (tipo pelo conteúdo/MIME, não só pela extensão; tamanho; quantidade; RN16 anexo obrigatório em despesa). Gravar em `BL_CONTEUDO`. |
-| Entregável | `AnexoBusiness`, `AnexoDAO`, `AnexoModel` |
+| Descrição | `p:fileUpload` (modo avançado) na inclusão/edição, com `sizeLimit`, `fileLimit` e `allowTypes` lidos de `TB_PARAMETRO` e `TB_TIPO_ARQUIVO`. Revalidar no `AnexoBusiness` (tipo pelo conteúdo/MIME, não só pela extensão; tamanho; quantidade; RN16 anexo obrigatório em despesa). Gravar o arquivo em disco pela `ArmazenamentoAnexo` (temporário, depois pasta AAAA/MM com nome UUID) e os metadados em `TB_ANEXO` (UUID, nome, caminho, extensão, tamanho, SHA-256), conforme Armazenamento dos arquivos na Especificação técnica. |
+| Entregável | `AnexoBusiness`, `AnexoDAO`, `AnexoModel`, `ArmazenamentoAnexo` |
 | Aceite | CA09 da Homologação final; arquivo `.exe` renomeado para `.jpg` é recusado no servidor |
 | Depende de | T3.2 |
 
@@ -244,7 +244,7 @@ Entrega: CRUD completo de receitas e despesas com anexos, numa única dialog com
 | --- | --- |
 | Labels | `desenvolvimento` `front` `back` `to do` |
 | APF | CE — baixar anexo |
-| Descrição | Link Baixar em todos os modos, com `p:fileDownload` + `StreamedContent`. O BLOB só é lido nessa ação; a lista de anexos não carrega o conteúdo. |
+| Descrição | Link Baixar em todos os modos, com `p:fileDownload` + `StreamedContent`. O arquivo só é lido do disco nessa ação (pelo caminho gravado em TB_ANEXO, conferindo o SHA-256); a lista de anexos carrega só os metadados. |
 | Entregável | `AnexoBusiness.baixar()` |
 | Aceite | CA10 da Homologação final: arquivo baixado abre com o nome e o tipo originais |
 | Depende de | T3.5 |
@@ -257,7 +257,7 @@ Entrega: CRUD completo de receitas e despesas com anexos, numa única dialog com
 | APF | EE — remover anexo |
 | Descrição | Botão Remover na lista de anexos, só em inclusão/edição. Respeita RN16 (despesa não pode ficar sem anexo se obrigatório). |
 | Entregável | `AnexoBusiness.remover()` |
-| Aceite | Anexo removido some da lista e do banco ao salvar; remover o único anexo de despesa obrigatória é recusado |
+| Aceite | Anexo removido some da lista e do banco ao salvar, e o arquivo sai do disco após o commit; remover o único anexo de despesa obrigatória é recusado |
 | Depende de | T3.5 |
 
 ## Pacote 4 — Saldos e concorrência

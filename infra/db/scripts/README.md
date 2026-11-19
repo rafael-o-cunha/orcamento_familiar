@@ -2,12 +2,10 @@
 
 Os arquivos `.sql` desta pasta rodam automaticamente, em ordem alfabética, **só no primeiro start** do container Oracle (quando o volume de dados está vazio). Para rodar de novo: `make db-reset`.
 
-Nomes esperados (criados na tarefa T0.2):
-
 | Arquivo | Conteúdo |
 | --- | --- |
-| `01_ddl.sql` | Tabelas, sequences, PK, FK, UK, CHECK e índices (dicionário em `docs/03-especificacao-tecnica.md`) |
-| `02_carga.sql` | 2 usuários, 2 limites de R$ 1.000,00, parâmetro ID 1 e linha de controle do saldo comum |
+| `01_ddl.sql` | Pronto (Oracle 19c). Sequences, 7 tabelas, PK, FK sem cascade, UK, CHECK, índices e comentários, conforme o dicionário em `docs/03-especificacao-tecnica.md` |
+| `02_carga.sql` | A criar na tarefa T0.2: 2 usuários, 2 limites de R$ 1.000,00, parâmetro ID 1, tipos de arquivo (jpg, jpeg, png, pdf) e linha de controle do saldo comum |
 
 ## Cuidados
 

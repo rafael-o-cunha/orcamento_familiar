@@ -9,6 +9,7 @@ O **Orçamento Familiar** é um sistema web de orçamento familiar onde dois usu
 | [Descrição](01-descricao.md)                          | Objetivo, o que será praticado, tecnologias e escopo               |
 | [Telas e regras de negócio](02-telas-e-regras.md)      | Exemplos de tela, funcionalidades e regras de negócio              |
 | [Especificação técnica](03-especificacao-tecnica.md) | Arquitetura, concorrência, modelo de dados e dicionário (Oracle)  |
+| [Protótipos de tela](05-prototipos.md) | Só os prints das telas e da dialog, para consulta rápida |
 | [Tarefas](04-tarefas.md)                                | Pacotes de tarefas (issues), labels, homologação e acompanhamento |
 
 ## O que será praticado
@@ -19,14 +20,14 @@ O **Orçamento Familiar** é um sistema web de orçamento familiar onde dois usu
 | Grid paginada                   | `p:dataTable` lazy com paginação e ordenação feitas no banco                                                      |
 | Filtros dinâmicos              | Filtro por período, natureza, escopo, forma, usuário e título                                                        |
 | Validação                     | Campos obrigatórios na tela (JSF) e regras de negócio no Business                                                     |
-| Upload e download de arquivos   | Cupons anexados ao lançamento, gravados em BLOB e baixados na consulta                                                 |
+| Upload e download de arquivos   | Cupons anexados ao lançamento, gravados em disco (nome UUID) com os metadados em TB_ANEXO, e baixados na consulta                                                 |
 | Concorrência                   | Bloqueio otimista (`@Version`) no saldo comum, com mensagem e atualização da tela em caso de conflito               |
 | Controle de transação         | Transações realizadas a través do Hibernate.                                                                         |
 | Dados financeiros               | `BigDecimal`, `NUMBER(15,6)`, saldo acumulado, saldo mensal por usuário, data de efetivação (fatura do crédito) |
 | Requisição assíncrona (AJAX) | `p:ajax`, `update`/`process`, seleção na grid, dialogs sem recarregar a página                                 |
 | Controle de estado de tela      | Botões habilitados por seleção, dialog com modos consulta/inclusão/edição                                         |
 | Login e logout                  | Hash de senha, sessão, filtro de páginas protegidas                                                                   |
-| Modelo de dados                 | Modelagem ER, PK, FK, UK, CHECK, sequences no Oracle                                                                    |
+| Modelo de dados                 | Modelagem ER, PK, FK sem cascade, UK, CHECK, sequences no Oracle 19c                                                                    |
 | Consultas SQL                   | SQL nativo, válido para paginado e parâmetros nomeados usando Hibernate                                               |
 | Mapeamento JPA                  | Entidades, enums, `@Version etc.`                                                                                     |
 | Arquitetura em camadas          | View → Controller → Business → DAO, com DTOs Filtro/Model/Helper/VO                                                  |
@@ -43,7 +44,7 @@ O **Orçamento Familiar** é um sistema web de orçamento familiar onde dois usu
 | Servidor      | WildFly 13 (JBoss)       | Datasource Oracle configurado no `standalone.xml`                      |
 | Persistência | Hibernate (JPA)          | Entidades mapeadas + SQL nativo para consultas da grid e saldos          |
 | Transação   | Hibernate - JPA          | Hibernate implementa recursos, basta usar.                               |
-| Banco         | Oracle                   | Sequences para PKs                                                       |
+| Banco         | Oracle 19c               | Sequences para PKs                                                       |
 | Build         | Maven                    | Empacotamento `.war`                                                   |
 | Anexos        | Storage                  | Armazenamento de arquivos.                                               |
 
