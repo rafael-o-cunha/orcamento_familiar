@@ -35,6 +35,8 @@ services:
       DB_URL: ${DB_URL}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      # Raiz dos anexos (arquivos ficam em disco; o banco guarda só os metadados).
+      ANEXOS_DIR: /opt/orcamento/anexos
       TZ: America/Sao_Paulo
     ports:
       - "${APP_PORT}:8080"
@@ -43,9 +45,12 @@ services:
     volumes:
       # O .war copiado para infra/app/deployments (make deploy) é publicado sem reiniciar.
       - ./app/deployments:/opt/jboss/wildfly/standalone/deployments
+      # Arquivos anexados sobrevivem a restart e rebuild do container.
+      - anexos-dados:/opt/orcamento/anexos
     depends_on:
       oracle:
         condition: service_healthy
 
 volumes:
   oracle-dados:
+  anexos-dados:

@@ -5,12 +5,13 @@
 -- Dicionário de dados: docs/03-especificacao-tecnica.md, seção 4.
 --
 -- Regras deste script:
---   * Nenhuma FK usa ON DELETE CASCADE nem ON DELETE SET NULL. Excluir um
---     registro que ainda tem filhos é recusado pelo banco (ORA-02292); a ordem
---     de exclusão é responsabilidade do Business.
+--   * Exclusão lógica: a aplicação não faz DELETE. Lançamento, anexo, tipo de
+--     arquivo, parâmetros e usuário têm FL_ATIVO (S/N); excluir = FL_ATIVO 'N'.
+--   * Nenhuma FK usa ON DELETE CASCADE nem ON DELETE SET NULL. Um DELETE manual
+--     de registro com filhos é recusado pelo banco (ORA-02292).
 --   * Arquivos anexados NÃO ficam no banco: TB_ANEXO guarda só os metadados
---     (UUID, nome, caminho relativo, extensão, tamanho, hash). O arquivo fica em
---     disco, em <raiz de anexos>/<DS_CAMINHO>/<CD_UUID>.<DS_EXTENSAO>.
+--     (UUID, nome original e caminho relativo). O arquivo fica em disco, em
+--     <raiz de anexos>/<DS_CAMINHO>, e continua lá quando o anexo é inativado.
 --   * Toda FK tem índice próprio (ou é a primeira coluna de uma UK/índice).
 --   * Sequences com INCREMENT BY 1: mapear com
 --     @SequenceGenerator(sequenceName = "SQ_...", allocationSize = 1).
@@ -30,7 +31,7 @@ CREATE SEQUENCE SQ_TIPO_ARQUIVO   START WITH 1 INCREMENT BY 1 NOCACHE;
 CREATE SEQUENCE SQ_ANEXO          START WITH 1 INCREMENT BY 1 NOCACHE;
 CREATE SEQUENCE SQ_LIMITE_USUARIO START WITH 1 INCREMENT BY 1 NOCACHE;
 CREATE SEQUENCE SQ_SALDO_CONTROLE START WITH 1 INCREMENT BY 1 NOCACHE;
--- TB_PARAMETRO tem um único registro (ID = 1) e não usa sequence.
+-- TB_PARAMETRO e TB_PARAMETRO_ANEXO têm um único registro (ID = 1) e não usam sequence.
 
 -- -----------------------------------------------------------------------------
 -- TB_USUARIO — usuários do sistema (2 registros, criados no 02_carga.sql)
@@ -70,6 +71,7 @@ CREATE TABLE TB_LANCAMENTO (
     DT_LANCAMENTO         DATE           NOT NULL,
     DT_EFETIVACAO         DATE           NOT NULL,
     NR_VERSAO             NUMBER(10)     DEFAULT 0 NOT NULL,
+    FL_ATIVO              CHAR(1)        DEFAULT 'S' NOT NULL,
     DT_CRIACAO            TIMESTAMP      DEFAULT SYSTIMESTAMP NOT NULL,
     DT_ALTERACAO          TIMESTAMP,
     ID_USUARIO_ALTERACAO  NUMBER(19),
@@ -80,7 +82,8 @@ CREATE TABLE TB_LANCAMENTO (
     CONSTRAINT CK_LANCAMENTO_FORMA       CHECK (TP_FORMA_PAGAMENTO IN ('D', 'C')),
     CONSTRAINT CK_LANCAMENTO_ESCOPO      CHECK (TP_ESCOPO IN ('C', 'P')),
     CONSTRAINT CK_LANCAMENTO_VALOR       CHECK (VL_LANCAMENTO > 0),
-    CONSTRAINT CK_LANCAMENTO_EFETIVACAO  CHECK (DT_EFETIVACAO >= DT_LANCAMENTO)
+    CONSTRAINT CK_LANCAMENTO_EFETIVACAO  CHECK (DT_EFETIVACAO >= DT_LANCAMENTO),
+    CONSTRAINT CK_LANCAMENTO_FL_ATIVO    CHECK (FL_ATIVO IN ('S', 'N'))
 );
 
 -- Grid (filtro por período) e saldos (por usuário, escopo e mês de efetivação).
@@ -101,37 +104,35 @@ COMMENT ON COLUMN TB_LANCAMENTO.DS_DESCRICAO         IS 'Descrição livre';
 COMMENT ON COLUMN TB_LANCAMENTO.DT_LANCAMENTO        IS 'Data da compra/recebimento (grid, filtros e regra do ano corrente)';
 COMMENT ON COLUMN TB_LANCAMENTO.DT_EFETIVACAO        IS 'Data em que o dinheiro sai/entra: débito = DT_LANCAMENTO; crédito = vencimento da fatura';
 COMMENT ON COLUMN TB_LANCAMENTO.NR_VERSAO            IS 'Versão para bloqueio otimista (@Version)';
+COMMENT ON COLUMN TB_LANCAMENTO.FL_ATIVO             IS 'S = ativo, N = excluído (exclusão lógica; some da grid e dos saldos)';
 COMMENT ON COLUMN TB_LANCAMENTO.DT_CRIACAO           IS 'Auditoria: inclusão';
 COMMENT ON COLUMN TB_LANCAMENTO.DT_ALTERACAO         IS 'Auditoria: última alteração';
 COMMENT ON COLUMN TB_LANCAMENTO.ID_USUARIO_ALTERACAO IS 'Auditoria: quem alterou por último';
 
 -- -----------------------------------------------------------------------------
--- TB_TIPO_ARQUIVO — tipos de arquivo conhecidos e se o upload é permitido
+-- TB_TIPO_ARQUIVO — extensões de arquivo aceitas no upload (N registros)
+--   Nesta versão a tela mostra três checkboxes (jpg, png, pdf) que ligam ou
+--   desligam FL_ATIVO; a tabela já aceita extensões digitadas no futuro.
 -- -----------------------------------------------------------------------------
 CREATE TABLE TB_TIPO_ARQUIVO (
     ID_TIPO_ARQUIVO       NUMBER(19)     NOT NULL,
     DS_EXTENSAO           VARCHAR2(10)   NOT NULL,
-    DS_CONTENT_TYPE       VARCHAR2(100)  NOT NULL,
-    TP_PREVIEW            CHAR(1)        NOT NULL,
-    FL_PERMITIDO          CHAR(1)        DEFAULT 'S' NOT NULL,
+    FL_ATIVO              CHAR(1)        DEFAULT 'S' NOT NULL,
     DT_ALTERACAO          TIMESTAMP,
     ID_USUARIO_ALTERACAO  NUMBER(19),
     CONSTRAINT PK_TIPO_ARQUIVO             PRIMARY KEY (ID_TIPO_ARQUIVO),
     CONSTRAINT UK_TIPO_ARQUIVO_EXTENSAO    UNIQUE (DS_EXTENSAO),
     CONSTRAINT FK_TIPO_ARQUIVO_USUARIO_ALT FOREIGN KEY (ID_USUARIO_ALTERACAO) REFERENCES TB_USUARIO (ID_USUARIO),
     CONSTRAINT CK_TIPO_ARQUIVO_EXTENSAO    CHECK (DS_EXTENSAO = LOWER(DS_EXTENSAO) AND INSTR(DS_EXTENSAO, '.') = 0),
-    CONSTRAINT CK_TIPO_ARQUIVO_PREVIEW     CHECK (TP_PREVIEW IN ('I', 'P', 'N')),
-    CONSTRAINT CK_TIPO_ARQUIVO_PERMITIDO   CHECK (FL_PERMITIDO IN ('S', 'N'))
+    CONSTRAINT CK_TIPO_ARQUIVO_FL_ATIVO    CHECK (FL_ATIVO IN ('S', 'N'))
 );
 
 CREATE INDEX IX_TIPO_ARQUIVO_USUARIO_ALT ON TB_TIPO_ARQUIVO (ID_USUARIO_ALTERACAO);
 
-COMMENT ON TABLE  TB_TIPO_ARQUIVO                      IS 'Domínio dos tipos de arquivo; a parametrização liga/desliga FL_PERMITIDO';
+COMMENT ON TABLE  TB_TIPO_ARQUIVO                      IS 'Extensões aceitas no upload; MIME type e preview são derivados da extensão no Java';
 COMMENT ON COLUMN TB_TIPO_ARQUIVO.ID_TIPO_ARQUIVO      IS 'Identificador (SQ_TIPO_ARQUIVO)';
 COMMENT ON COLUMN TB_TIPO_ARQUIVO.DS_EXTENSAO          IS 'Extensão em minúsculas, sem ponto (jpg, png, pdf)';
-COMMENT ON COLUMN TB_TIPO_ARQUIVO.DS_CONTENT_TYPE      IS 'MIME type esperado (image/jpeg, application/pdf)';
-COMMENT ON COLUMN TB_TIPO_ARQUIVO.TP_PREVIEW           IS 'Preview na consulta: I = imagem, P = PDF, N = sem preview';
-COMMENT ON COLUMN TB_TIPO_ARQUIVO.FL_PERMITIDO         IS 'S = aceito no upload, N = recusado';
+COMMENT ON COLUMN TB_TIPO_ARQUIVO.FL_ATIVO             IS 'S = aceita no upload, N = desmarcada/excluída (exclusão lógica)';
 COMMENT ON COLUMN TB_TIPO_ARQUIVO.DT_ALTERACAO         IS 'Auditoria: última alteração';
 COMMENT ON COLUMN TB_TIPO_ARQUIVO.ID_USUARIO_ALTERACAO IS 'Auditoria: quem alterou por último';
 
@@ -145,12 +146,9 @@ CREATE TABLE TB_ANEXO (
     CD_UUID              VARCHAR2(36)   NOT NULL,
     NM_ARQUIVO           VARCHAR2(255)  NOT NULL,
     DS_CAMINHO           VARCHAR2(255)  NOT NULL,
-    DS_EXTENSAO          VARCHAR2(10)   NOT NULL,
-    DS_CONTENT_TYPE      VARCHAR2(100)  NOT NULL,
-    NR_TAMANHO_BYTES     NUMBER(12)     NOT NULL,
-    DS_HASH_SHA256       CHAR(64)       NOT NULL,
     DT_UPLOAD            TIMESTAMP      DEFAULT SYSTIMESTAMP NOT NULL,
     ID_USUARIO_UPLOAD    NUMBER(19)     NOT NULL,
+    FL_ATIVO             CHAR(1)        DEFAULT 'S' NOT NULL,
     CONSTRAINT PK_ANEXO              PRIMARY KEY (ID_ANEXO),
     CONSTRAINT UK_ANEXO_UUID         UNIQUE (CD_UUID),
     CONSTRAINT FK_ANEXO_LANCAMENTO   FOREIGN KEY (ID_LANCAMENTO)     REFERENCES TB_LANCAMENTO (ID_LANCAMENTO),
@@ -158,60 +156,84 @@ CREATE TABLE TB_ANEXO (
     CONSTRAINT FK_ANEXO_USUARIO      FOREIGN KEY (ID_USUARIO_UPLOAD) REFERENCES TB_USUARIO (ID_USUARIO),
     CONSTRAINT CK_ANEXO_UUID         CHECK (REGEXP_LIKE(CD_UUID, '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')),
     CONSTRAINT CK_ANEXO_CAMINHO      CHECK (SUBSTR(DS_CAMINHO, 1, 1) <> '/' AND INSTR(DS_CAMINHO, '..') = 0),
-    CONSTRAINT CK_ANEXO_TAMANHO      CHECK (NR_TAMANHO_BYTES > 0)
+    CONSTRAINT CK_ANEXO_FL_ATIVO     CHECK (FL_ATIVO IN ('S', 'N'))
 );
 
 CREATE INDEX IX_ANEXO_LANCAMENTO   ON TB_ANEXO (ID_LANCAMENTO);
 CREATE INDEX IX_ANEXO_TIPO_ARQUIVO ON TB_ANEXO (ID_TIPO_ARQUIVO);
 CREATE INDEX IX_ANEXO_USUARIO      ON TB_ANEXO (ID_USUARIO_UPLOAD);
 
-COMMENT ON TABLE  TB_ANEXO                   IS 'Metadados dos anexos; arquivo físico em <raiz>/<DS_CAMINHO>/<CD_UUID>.<DS_EXTENSAO>';
+COMMENT ON TABLE  TB_ANEXO                   IS 'Metadados dos anexos; arquivo físico em <raiz de anexos>/<DS_CAMINHO>';
 COMMENT ON COLUMN TB_ANEXO.ID_ANEXO          IS 'Identificador (SQ_ANEXO)';
-COMMENT ON COLUMN TB_ANEXO.ID_LANCAMENTO     IS 'Lançamento dono do anexo (sem cascade: o Business exclui os anexos antes do lançamento)';
-COMMENT ON COLUMN TB_ANEXO.ID_TIPO_ARQUIVO   IS 'Tipo do arquivo, validado no upload';
-COMMENT ON COLUMN TB_ANEXO.CD_UUID           IS 'UUID gerado no upload (java.util.UUID); é o nome do arquivo em disco';
+COMMENT ON COLUMN TB_ANEXO.ID_LANCAMENTO     IS 'Lançamento dono do anexo';
+COMMENT ON COLUMN TB_ANEXO.ID_TIPO_ARQUIVO   IS 'Extensão do arquivo (dela vêm o MIME type e o preview)';
+COMMENT ON COLUMN TB_ANEXO.CD_UUID           IS 'UUID gerado no upload (java.util.UUID); compõe o nome do arquivo em disco';
 COMMENT ON COLUMN TB_ANEXO.NM_ARQUIVO        IS 'Nome original enviado pelo usuário; usado no download';
-COMMENT ON COLUMN TB_ANEXO.DS_CAMINHO        IS 'Pasta relativa à raiz de anexos, no formato AAAA/MM (ex.: 2026/11)';
-COMMENT ON COLUMN TB_ANEXO.DS_EXTENSAO       IS 'Extensão gravada em disco, em minúsculas, sem ponto';
-COMMENT ON COLUMN TB_ANEXO.DS_CONTENT_TYPE   IS 'MIME type detectado no upload; usado no download e no preview';
-COMMENT ON COLUMN TB_ANEXO.NR_TAMANHO_BYTES  IS 'Tamanho do arquivo em bytes';
-COMMENT ON COLUMN TB_ANEXO.DS_HASH_SHA256    IS 'SHA-256 do conteúdo em hexadecimal; conferido no download';
+COMMENT ON COLUMN TB_ANEXO.DS_CAMINHO        IS 'Caminho relativo à raiz de anexos, com o nome em disco: AAAA/MM/<uuid>.<ext>';
 COMMENT ON COLUMN TB_ANEXO.DT_UPLOAD         IS 'Data do upload';
 COMMENT ON COLUMN TB_ANEXO.ID_USUARIO_UPLOAD IS 'Quem anexou';
+COMMENT ON COLUMN TB_ANEXO.FL_ATIVO          IS 'S = ativo, N = removido (exclusão lógica; o arquivo continua em disco)';
 
 -- -----------------------------------------------------------------------------
--- TB_PARAMETRO — parametrização geral (registro único, ID = 1)
+-- TB_PARAMETRO — limites mínimos de saldo (registro único, ID = 1)
 -- -----------------------------------------------------------------------------
 CREATE TABLE TB_PARAMETRO (
     ID_PARAMETRO              NUMBER(19)     NOT NULL,
     VL_LIMITE_MINIMO_COMUM    NUMBER(15,2)   NOT NULL,
     VL_LIMITE_MINIMO_PESSOAL  NUMBER(15,2)   NOT NULL,
-    QT_MAX_ANEXOS             NUMBER(3)      NOT NULL,
-    NR_TAMANHO_MAX_KB         NUMBER(8)      NOT NULL,
-    FL_ANEXO_OBRIG_DESPESA    CHAR(1)        DEFAULT 'N' NOT NULL,
     NR_VERSAO                 NUMBER(10)     DEFAULT 0 NOT NULL,
+    FL_ATIVO                  CHAR(1)        DEFAULT 'S' NOT NULL,
     DT_ALTERACAO              TIMESTAMP,
     ID_USUARIO_ALTERACAO      NUMBER(19),
     CONSTRAINT PK_PARAMETRO             PRIMARY KEY (ID_PARAMETRO),
     CONSTRAINT FK_PARAMETRO_USUARIO_ALT FOREIGN KEY (ID_USUARIO_ALTERACAO) REFERENCES TB_USUARIO (ID_USUARIO),
     CONSTRAINT CK_PARAMETRO_UNICO       CHECK (ID_PARAMETRO = 1),
-    CONSTRAINT CK_PARAMETRO_QT_ANEXOS   CHECK (QT_MAX_ANEXOS >= 1),
-    CONSTRAINT CK_PARAMETRO_TAMANHO     CHECK (NR_TAMANHO_MAX_KB > 0),
-    CONSTRAINT CK_PARAMETRO_ANEXO_OBRIG CHECK (FL_ANEXO_OBRIG_DESPESA IN ('S', 'N'))
+    CONSTRAINT CK_PARAMETRO_FL_ATIVO    CHECK (FL_ATIVO IN ('S', 'N'))
 );
 
 CREATE INDEX IX_PARAMETRO_USUARIO_ALT ON TB_PARAMETRO (ID_USUARIO_ALTERACAO);
 
-COMMENT ON TABLE  TB_PARAMETRO                          IS 'Parametrização geral; registro único com ID = 1. Tipos de arquivo ficam em TB_TIPO_ARQUIVO';
+COMMENT ON TABLE  TB_PARAMETRO                          IS 'Limites mínimos de saldo; registro único com ID = 1';
 COMMENT ON COLUMN TB_PARAMETRO.ID_PARAMETRO             IS 'Sempre 1';
 COMMENT ON COLUMN TB_PARAMETRO.VL_LIMITE_MINIMO_COMUM   IS 'Menor saldo comum permitido após uma despesa (ex.: 0,00 ou -500,00)';
 COMMENT ON COLUMN TB_PARAMETRO.VL_LIMITE_MINIMO_PESSOAL IS 'Menor saldo pessoal disponível permitido após uma despesa';
-COMMENT ON COLUMN TB_PARAMETRO.QT_MAX_ANEXOS            IS 'Máximo de anexos por lançamento';
-COMMENT ON COLUMN TB_PARAMETRO.NR_TAMANHO_MAX_KB        IS 'Tamanho máximo por arquivo, em KB';
-COMMENT ON COLUMN TB_PARAMETRO.FL_ANEXO_OBRIG_DESPESA   IS 'S = despesa exige ao menos um anexo';
-COMMENT ON COLUMN TB_PARAMETRO.NR_VERSAO                IS 'Versão para bloqueio otimista (@Version); incrementada também ao salvar tipos de arquivo';
+COMMENT ON COLUMN TB_PARAMETRO.NR_VERSAO                IS 'Versão para bloqueio otimista (@Version)';
+COMMENT ON COLUMN TB_PARAMETRO.FL_ATIVO                 IS 'Padrão de exclusão lógica; o registro único fica sempre S';
 COMMENT ON COLUMN TB_PARAMETRO.DT_ALTERACAO             IS 'Auditoria: última alteração';
 COMMENT ON COLUMN TB_PARAMETRO.ID_USUARIO_ALTERACAO     IS 'Auditoria: quem alterou por último';
+
+-- -----------------------------------------------------------------------------
+-- TB_PARAMETRO_ANEXO — regras de upload (registro único, ID = 1)
+-- -----------------------------------------------------------------------------
+CREATE TABLE TB_PARAMETRO_ANEXO (
+    ID_PARAMETRO_ANEXO        NUMBER(19)     NOT NULL,
+    QT_MAX_ANEXOS             NUMBER(3)      NOT NULL,
+    NR_TAMANHO_MAX_KB         NUMBER(8)      NOT NULL,
+    FL_ANEXO_OBRIG_DESPESA    CHAR(1)        DEFAULT 'N' NOT NULL,
+    NR_VERSAO                 NUMBER(10)     DEFAULT 0 NOT NULL,
+    FL_ATIVO                  CHAR(1)        DEFAULT 'S' NOT NULL,
+    DT_ALTERACAO              TIMESTAMP,
+    ID_USUARIO_ALTERACAO      NUMBER(19),
+    CONSTRAINT PK_PARAMETRO_ANEXO             PRIMARY KEY (ID_PARAMETRO_ANEXO),
+    CONSTRAINT FK_PARAMETRO_ANEXO_USUARIO_ALT FOREIGN KEY (ID_USUARIO_ALTERACAO) REFERENCES TB_USUARIO (ID_USUARIO),
+    CONSTRAINT CK_PARAMETRO_ANEXO_UNICO       CHECK (ID_PARAMETRO_ANEXO = 1),
+    CONSTRAINT CK_PARAMETRO_ANEXO_QT          CHECK (QT_MAX_ANEXOS >= 1),
+    CONSTRAINT CK_PARAMETRO_ANEXO_TAMANHO     CHECK (NR_TAMANHO_MAX_KB > 0),
+    CONSTRAINT CK_PARAMETRO_ANEXO_OBRIG       CHECK (FL_ANEXO_OBRIG_DESPESA IN ('S', 'N')),
+    CONSTRAINT CK_PARAMETRO_ANEXO_FL_ATIVO    CHECK (FL_ATIVO IN ('S', 'N'))
+);
+
+CREATE INDEX IX_PARAMETRO_ANEXO_USUARIO_ALT ON TB_PARAMETRO_ANEXO (ID_USUARIO_ALTERACAO);
+
+COMMENT ON TABLE  TB_PARAMETRO_ANEXO                        IS 'Regras de upload; registro único com ID = 1. As extensões ficam em TB_TIPO_ARQUIVO';
+COMMENT ON COLUMN TB_PARAMETRO_ANEXO.ID_PARAMETRO_ANEXO     IS 'Sempre 1';
+COMMENT ON COLUMN TB_PARAMETRO_ANEXO.QT_MAX_ANEXOS          IS 'Máximo de anexos ativos por lançamento';
+COMMENT ON COLUMN TB_PARAMETRO_ANEXO.NR_TAMANHO_MAX_KB      IS 'Tamanho máximo por arquivo, em KB';
+COMMENT ON COLUMN TB_PARAMETRO_ANEXO.FL_ANEXO_OBRIG_DESPESA IS 'S = despesa exige ao menos um anexo ativo';
+COMMENT ON COLUMN TB_PARAMETRO_ANEXO.NR_VERSAO              IS 'Versão para bloqueio otimista (@Version); incrementada também ao marcar/desmarcar tipos de arquivo';
+COMMENT ON COLUMN TB_PARAMETRO_ANEXO.FL_ATIVO               IS 'Padrão de exclusão lógica; o registro único fica sempre S';
+COMMENT ON COLUMN TB_PARAMETRO_ANEXO.DT_ALTERACAO           IS 'Auditoria: última alteração';
+COMMENT ON COLUMN TB_PARAMETRO_ANEXO.ID_USUARIO_ALTERACAO   IS 'Auditoria: quem alterou por último';
 
 -- -----------------------------------------------------------------------------
 -- TB_LIMITE_USUARIO — histórico do limite de crédito pessoal por usuário

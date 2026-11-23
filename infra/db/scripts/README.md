@@ -4,8 +4,8 @@ Os arquivos `.sql` desta pasta rodam automaticamente, em ordem alfabética, **s�
 
 | Arquivo | Conteúdo |
 | --- | --- |
-| `01_ddl.sql` | Pronto (Oracle 19c). Sequences, 7 tabelas, PK, FK sem cascade, UK, CHECK, índices e comentários, conforme o dicionário em `docs/03-especificacao-tecnica.md` |
-| `02_carga.sql` | A criar na tarefa T0.2: 2 usuários, 2 limites de R$ 1.000,00, parâmetro ID 1, tipos de arquivo (jpg, jpeg, png, pdf) e linha de controle do saldo comum |
+| `01_ddl.sql` | Pronto (Oracle 19c). Sequences, 8 tabelas, PK, FK sem cascade, FL_ATIVO (exclusão lógica), UK, CHECK, índices e comentários, conforme o dicionário em `docs/03-especificacao-tecnica.md` |
+| `02_carga.sql` | A criar na tarefa T0.2: 2 usuários, 2 limites de R$ 1.000,00, parâmetro ID 1, regras de anexo ID 1, tipos de arquivo ativos (jpg, png, pdf) e linha de controle do saldo comum |
 
 ## Cuidados
 

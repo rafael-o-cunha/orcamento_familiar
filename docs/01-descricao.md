@@ -16,7 +16,7 @@ O **Orçamento Familiar** é um sistema web de orçamento familiar onde dois usu
 
 | Conceito                        | Onde aparece no projeto                                                                                                 |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| CRUD                            | Incluir, consultar, editar e excluir lançamentos                                                                       |
+| CRUD                            | Incluir, consultar, editar e excluir lançamentos (exclusão lógica com FL_ATIVO)                                                                       |
 | Grid paginada                   | `p:dataTable` lazy com paginação e ordenação feitas no banco                                                      |
 | Filtros dinâmicos              | Filtro por período, natureza, escopo, forma, usuário e título                                                        |
 | Validação                     | Campos obrigatórios na tela (JSF) e regras de negócio no Business                                                     |

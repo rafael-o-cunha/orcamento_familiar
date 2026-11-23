@@ -19,6 +19,11 @@ RUN /opt/jboss/wildfly/bin/jboss-cli.sh --file=/tmp/configurar-datasource.cli \
 # Usuário do console de administração (http://localhost:9990).
 RUN /opt/jboss/wildfly/bin/add-user.sh -u "${WILDFLY_ADMIN_USER}" -p "${WILDFLY_ADMIN_PASSWORD}" --silent
 
+# Pasta dos anexos (volume anexos-dados no docker-compose), gravável pelo usuário jboss.
+USER root
+RUN mkdir -p /opt/orcamento/anexos && chown -R jboss:jboss /opt/orcamento
+USER jboss
+
 EXPOSE 8080 9990 8787
 
 # -b/-bmanagement: aceita conexões de fora do container; --debug: depuração remota na 8787.

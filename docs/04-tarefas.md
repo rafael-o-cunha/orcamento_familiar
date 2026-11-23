@@ -36,7 +36,7 @@ O estagiário move a issue até `pronto pra teste`; daí em diante quem move é 
 
 | Pacote | Tela | Tarefas | Funções APF |
 | --- | --- | --- | --- |
-| P0 — Fundação | — | T0.1 a T0.4 | ALI: Usuário, Lançamento/Anexo/Tipo de arquivo, Parâmetro/Limite, Saldo de controle |
+| P0 — Fundação | — | T0.1 a T0.4 | ALI: Usuário, Lançamento/Anexo/Tipo de arquivo, Parâmetro/Regras de anexo/Limite, Saldo de controle |
 | P1 — Login e logout | Login | T1.1 a T1.3 | EE: entrar, sair |
 | P2 — Lançamentos | Grid de lançamentos | T2.1 a T2.4 | CE: pesquisar |
 | P3 — Dialog de lançamento | Dialog | T3.1 a T3.7 | CE: consultar, baixar anexo · EE: incluir, alterar, excluir, anexar, remover anexo |
@@ -66,8 +66,8 @@ Entrega: projeto rodando no WildFly, banco criado e entidades mapeadas, com uma 
 | Campo | Conteúdo |
 | --- | --- |
 | Labels | `desenvolvimento` `banco` `to do` |
-| APF | ALI (as 7 tabelas do dicionário de dados) |
-| Descrição | Estudar e rodar o script DDL de referência (infra/db/scripts/01_ddl.sql, Oracle 19c: sequences, PK, FK sem cascade, UK, CHECK e índices) e conferir com o dicionário. Script de carga com 2 usuários (senha em hash), 2 limites de R$ 1.000,00 com vigência a partir de 202601, parâmetro ID 1, tipos de arquivo (jpg, jpeg, png, pdf) e linha de controle do saldo comum. |
+| APF | ALI (as 8 tabelas do dicionário de dados) |
+| Descrição | Estudar e rodar o script DDL de referência (infra/db/scripts/01_ddl.sql, Oracle 19c: sequences, PK, FK sem cascade, UK, CHECK e índices) e conferir com o dicionário. Script de carga com 2 usuários (senha em hash), 2 limites de R$ 1.000,00 com vigência a partir de 202601, parâmetro ID 1, regras de anexo ID 1, tipos de arquivo ativos (jpg, png, pdf) e linha de controle do saldo comum. |
 | Entregável | `01_ddl.sql` e `02_carga.sql` em `infra/db/scripts` |
 | Aceite | Scripts rodam do zero sem erro; CHECK rejeita valor ≤ 0 e natureza inválida |
 | Depende de | — |
@@ -78,7 +78,7 @@ Entrega: projeto rodando no WildFly, banco criado e entidades mapeadas, com uma 
 | --- | --- |
 | Labels | `desenvolvimento` `back` `banco` `to do` |
 | APF | ALI |
-| Descrição | Entidades `Usuario`, `Lancamento`, `Anexo`, `TipoArquivo`, `Parametro`, `LimiteUsuario`, `SaldoControle` com `@SequenceGenerator(allocationSize = 1)`, `@Version`, `@ManyToOne(fetch = LAZY)` só no lado dono, sem `cascade`, sem `@OneToMany` e sem `orphanRemoval`, e enums com `AttributeConverter`. |
+| Descrição | Entidades `Usuario`, `Lancamento`, `Anexo`, `TipoArquivo`, `Parametro`, `ParametroAnexo`, `LimiteUsuario`, `SaldoControle` com `@SequenceGenerator(allocationSize = 1)`, `@Version`, `@ManyToOne(fetch = LAZY)` só no lado dono, sem `cascade`, sem `@OneToMany` e sem `orphanRemoval`, `FL_ATIVO` mapeado em todas as entidades com exclusão lógica, e enums com `AttributeConverter`. |
 | Entregável | Pacotes `entity` e `enums` |
 | Aceite | Deploy sem erro de mapeamento; um teste simples faz `find` de cada entidade da carga |
 | Depende de | T0.1, T0.2 |
@@ -141,7 +141,7 @@ Entrega: grid paginada no banco, com filtros e botões que habilitam pela seleç
 | --- | --- |
 | Labels | `desenvolvimento` `front` `back` `banco` `to do` |
 | APF | CE — pesquisar lançamentos |
-| Descrição | Painel de filtros (período, natureza, escopo, forma, usuário, título contém) e botão Pesquisar. `LancamentoFiltro` desce até o DAO, que monta SQL nativo só com os critérios preenchidos, sempre com parâmetros nomeados. Período padrão = mês corrente. |
+| Descrição | Painel de filtros (período, natureza, escopo, forma, usuário, título contém) e botão Pesquisar. `LancamentoFiltro` desce até o DAO, que monta SQL nativo só com os critérios preenchidos, sempre com parâmetros nomeados e só registros ativos (`FL_ATIVO = 'S'`). Período padrão = mês corrente. |
 | Entregável | Painel de filtros no `lancamentos.xhtml`, `LancamentoFiltro`, `LancamentoModel`, `LancamentoDAO.pesquisar()` |
 | Aceite | Cada filtro sozinho e combinado retorna o esperado; título com aspas simples não quebra a consulta (sem SQL injection) |
 | Depende de | T1.1 |
@@ -222,9 +222,9 @@ Entrega: CRUD completo de receitas e despesas com anexos, numa única dialog com
 | --- | --- |
 | Labels | `desenvolvimento` `front` `back` `to do` |
 | APF | EE — excluir lançamento |
-| Descrição | Botão Excluir abre `p:confirmDialog`. Mesmas regras do editar (RN05, RN06); anexos excluídos pelo Business antes do lançamento, na mesma transação e sem cascade; arquivos apagados do disco após o commit (RN18). |
+| Descrição | Botão Excluir abre `p:confirmDialog`. Mesmas regras do editar (RN05, RN06); exclusão lógica: o lançamento e seus anexos ativos recebem `FL_ATIVO = N` na mesma transação, o valor volta aos saldos e os arquivos continuam em disco (RN18). |
 | Entregável | `LancamentoBusiness.excluir()` |
-| Aceite | Após confirmar, some da grid e os anexos somem do banco e da pasta de anexos; cancelar não altera nada |
+| Aceite | Após confirmar, some da grid e lançamento e anexos ficam com `FL_ATIVO = N` no banco (nenhum DELETE), com os arquivos ainda em disco; cancelar não altera nada |
 | Depende de | T3.3 |
 
 ### [P3] T3.5 Anexar arquivo
@@ -233,7 +233,7 @@ Entrega: CRUD completo de receitas e despesas com anexos, numa única dialog com
 | --- | --- |
 | Labels | `desenvolvimento` `front` `back` `banco` `seguranca` `to do` |
 | APF | EE — anexar arquivo |
-| Descrição | `p:fileUpload` (modo avançado) na inclusão/edição, com `sizeLimit`, `fileLimit` e `allowTypes` lidos de `TB_PARAMETRO` e `TB_TIPO_ARQUIVO`. Revalidar no `AnexoBusiness` (tipo pelo conteúdo/MIME, não só pela extensão; tamanho; quantidade; RN16 anexo obrigatório em despesa). Gravar o arquivo em disco pela `ArmazenamentoAnexo` (temporário, depois pasta AAAA/MM com nome UUID) e os metadados em `TB_ANEXO` (UUID, nome, caminho, extensão, tamanho, SHA-256), conforme Armazenamento dos arquivos na Especificação técnica. |
+| Descrição | `p:fileUpload` (modo avançado) na inclusão/edição, com `sizeLimit`, `fileLimit` e `allowTypes` lidos de `TB_PARAMETRO_ANEXO` e das extensões ativas de `TB_TIPO_ARQUIVO`. Revalidar no `AnexoBusiness` (tipo pelo conteúdo/MIME, não só pela extensão; tamanho; quantidade; RN16 anexo obrigatório em despesa). Gravar o arquivo em disco pela `ArmazenamentoAnexo` (temporário, depois pasta AAAA/MM com nome UUID) e os metadados em `TB_ANEXO` (UUID, nome, caminho e tipo de arquivo), conforme Armazenamento dos arquivos na Especificação técnica. |
 | Entregável | `AnexoBusiness`, `AnexoDAO`, `AnexoModel`, `ArmazenamentoAnexo` |
 | Aceite | CA09 da Homologação final; arquivo `.exe` renomeado para `.jpg` é recusado no servidor |
 | Depende de | T3.2 |
@@ -244,7 +244,7 @@ Entrega: CRUD completo de receitas e despesas com anexos, numa única dialog com
 | --- | --- |
 | Labels | `desenvolvimento` `front` `back` `to do` |
 | APF | CE — baixar anexo |
-| Descrição | Link Baixar em todos os modos, com `p:fileDownload` + `StreamedContent`. O arquivo só é lido do disco nessa ação (pelo caminho gravado em TB_ANEXO, conferindo o SHA-256); a lista de anexos carrega só os metadados. |
+| Descrição | Link Baixar em todos os modos, com `p:fileDownload` + `StreamedContent`. O arquivo só é lido do disco nessa ação (pelo caminho gravado em TB_ANEXO; Content-Type derivado da extensão); a lista de anexos carrega só os metadados. |
 | Entregável | `AnexoBusiness.baixar()` |
 | Aceite | CA10 da Homologação final: arquivo baixado abre com o nome e o tipo originais |
 | Depende de | T3.5 |
@@ -257,7 +257,7 @@ Entrega: CRUD completo de receitas e despesas com anexos, numa única dialog com
 | APF | EE — remover anexo |
 | Descrição | Botão Remover na lista de anexos, só em inclusão/edição. Respeita RN16 (despesa não pode ficar sem anexo se obrigatório). |
 | Entregável | `AnexoBusiness.remover()` |
-| Aceite | Anexo removido some da lista e do banco ao salvar, e o arquivo sai do disco após o commit; remover o único anexo de despesa obrigatória é recusado |
+| Aceite | Anexo removido some da lista e fica com `FL_ATIVO = N` ao salvar; o arquivo continua em disco; remover o único anexo de despesa obrigatória é recusado |
 | Depende de | T3.5 |
 
 ## Pacote 4 — Saldos e concorrência
@@ -340,8 +340,8 @@ Entrega: limites e regras de upload editáveis em tela, com proteção contra ed
 | --- | --- |
 | Labels | `desenvolvimento` `front` `back` `to do` |
 | APF | CE — consultar parâmetros |
-| Descrição | Tela abre em modo consulta com os limites pessoais vigentes dos 2 usuários, limites mínimos comum e pessoal e regras de anexo. Dados de `TB_PARAMETRO` + `TB_LIMITE_USUARIO` em um `ParametroModel`. |
-| Entregável | `parametros.xhtml`, `ParametroView`, `ParametroController`, `ParametroBusiness`, `ParametroDAO`, `ParametroModel` |
+| Descrição | Tela abre em modo consulta com os limites pessoais vigentes dos 2 usuários, limites mínimos comum e pessoal e regras de anexo. Dados de `TB_PARAMETRO`, `TB_PARAMETRO_ANEXO`, `TB_TIPO_ARQUIVO` e `TB_LIMITE_USUARIO` em um `ParametroModel`. |
+| Entregável | `parametros.xhtml`, `ParametroView`, `ParametroController`, `ParametroBusiness`, `ParametroDAO`, `ParametroAnexoDAO`, `TipoArquivoDAO`, `ParametroModel` |
 | Aceite | Tela mostra os valores da carga inicial com campos desabilitados e só Editar ativo |
 | Depende de | T1.1 |
 
@@ -351,7 +351,7 @@ Entrega: limites e regras de upload editáveis em tela, com proteção contra ed
 | --- | --- |
 | Labels | `desenvolvimento` `front` `back` `to do` |
 | APF | EE — salvar parâmetros |
-| Descrição | Editar habilita campos e Salvar/Cancelar. Validar: limite pessoal ≥ 0, tamanho máximo > 0, quantidade ≥ 1, ao menos um tipo de arquivo. Gravar com `@Version`; conflito mostra mensagem para recarregar. Limite pessoal: atualiza o registro do mês corrente ou insere um novo; meses anteriores ficam intactos. |
+| Descrição | Editar habilita campos e Salvar/Cancelar. Validar: limite pessoal ≥ 0, tamanho máximo > 0, quantidade ≥ 1, ao menos um tipo de arquivo marcado (cada um dos três checkboxes liga ou desliga o `FL_ATIVO` da sua extensão em `TB_TIPO_ARQUIVO`). Gravar com `@Version`; conflito mostra mensagem para recarregar. Limite pessoal: atualiza o registro do mês corrente ou insere um novo; meses anteriores ficam intactos. |
 | Entregável | `ParametroBusiness.salvar()` |
 | Aceite | CA11 da Homologação final; dois usuários salvando ao mesmo tempo: o segundo recebe a mensagem de conflito; novo limite de upload vale no próximo anexo; mudar o limite pessoal em outubro não altera o saldo de setembro |
 | Depende de | T5.1 |
