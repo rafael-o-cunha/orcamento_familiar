@@ -267,7 +267,10 @@ COMMENT ON COLUMN TB_LIMITE_USUARIO.DT_ALTERACAO         IS 'Auditoria: última 
 COMMENT ON COLUMN TB_LIMITE_USUARIO.ID_USUARIO_ALTERACAO IS 'Auditoria: quem alterou por último';
 
 -- -----------------------------------------------------------------------------
--- TB_SALDO_CONTROLE — saldo consolidado e controle de versão
+-- TB_SALDO_CONTROLE — ponto de controle de concorrência e saldo consolidado
+--   Existe para evitar write skew: dois INSERTs em TB_LANCAMENTO nunca entram
+--   em conflito no @Version, então toda gravação de lançamento faz UPDATE na
+--   linha comum (e na pessoal do mês), que vira o ponto de conflito.
 --   Linha comum:   TP_ESCOPO = 'C', ID_USUARIO e NR_ANO_MES nulos (saldo acumulado).
 --   Linha pessoal: TP_ESCOPO = 'P', uma por usuário e mês de efetivação.
 -- -----------------------------------------------------------------------------

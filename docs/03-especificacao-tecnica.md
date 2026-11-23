@@ -52,6 +52,20 @@ Todo dinheiro sai do saldo comum, então toda receita e toda despesa (comum ou p
 
 O mesmo vale para dois usuários editando o mesmo registro: `TB_LANCAMENTO`, `TB_PARAMETRO`, `TB_PARAMETRO_ANEXO` e `TB_LIMITE_USUARIO` também têm `NR_VERSAO`, e quem salva por último recebe `msg_001_012_err` (lançamento) ou `msg_003_002_err` (parâmetros). A exclusão lógica (`FL_ATIVO = 'N'`) é um UPDATE como outro qualquer, então também passa pela versão.
 
+### Por que existe a TB_SALDO_CONTROLE
+
+O saldo pode ser calculado com `SUM` sobre `TB_LANCAMENTO`, então parece que a tabela sobra. Ela existe por causa de um problema de concorrência chamado **write skew**: duas transações leem o mesmo dado, cada uma decide com base nele e cada uma grava em um lugar diferente, e a soma das duas gravações quebra uma regra que cada uma, sozinha, respeitava.
+
+Exemplo com saldo comum de R$ 500,00 e limite mínimo de R$ 0,00:
+
+1. A transação do usuário A soma os lançamentos, vê R$ 500,00 e aceita uma despesa de R$ 300,00.
+2. Ao mesmo tempo, a transação do usuário B faz a mesma soma, também vê R$ 500,00 e aceita outra despesa de R$ 300,00.
+3. Cada uma faz um INSERT em `TB_LANCAMENTO`, as duas dão commit e o saldo fica em −R$ 100,00, abaixo do limite (RN08 e RN19 violadas).
+
+O `@Version` do Hibernate não impede isso, porque só detecta conflito quando duas transações alteram a **mesma linha**, e dois INSERTs de linhas novas nunca se chocam. O isolamento `SERIALIZABLE` do Oracle também não resolve: na prática ele é *snapshot isolation*, que permite write skew.
+
+A solução é criar uma linha que as duas transações precisam alterar. Toda inclusão, edição ou exclusão de lançamento faz UPDATE na linha comum de `TB_SALDO_CONTROLE` (e, se for despesa pessoal, na linha do usuário no mês). A primeira transação grava e muda a versão; a segunda encontra a versão antiga, recebe `OptimisticLockException`, é desfeita e a tela mostra `msg_001_013_err`. A linha é o ponto de encontro que transforma o write skew num conflito que o bloqueio otimista consegue ver. Por isso ela nunca pode ser pulada, nem quando o saldo for calculado de outro jeito.
+
 ![sequência · duas despesas simultâneas com bloqueio otimista](img/sequencia-concorrencia.svg)
 
 A e B leem a mesma versão; só o primeiro `UPDATE` encontra a linha na versão 7. O de B afeta 0 linhas, a transação de B é desfeita e a tela de B é atualizada com a mensagem.
@@ -239,7 +253,7 @@ O card Anexos da tela de parametrização grava aqui e em TB_TIPO_ARQUIVO; os ca
 
 Ao salvar um novo limite: se já existe registro do usuário com `NR_ANO_MES_INICIO` = mês corrente, ele é atualizado; senão, um novo registro é inserido. Registros de meses anteriores nunca são alterados.
 
-### TB_SALDO_CONTROLE — saldo consolidado e controle de versão
+### TB_SALDO_CONTROLE — ponto de controle de concorrência (evita write skew) e saldo consolidado
 
 | Coluna | Tipo | Nulo | Chave | Descrição |
 | --- | --- | --- | --- | --- |
